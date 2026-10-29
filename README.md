@@ -8,6 +8,7 @@ Primera iteración de una aplicación escolar construida con **Spec-Driven Devel
 AGENTS.md                                  Reglas operativas para el agente
 .specify/memory/constitution.md            Principios del proyecto
 .agents/skills/brand-design/SKILL.md       Skill de identidad visual y lenguaje
+specs/README.md                            Jerarquía y hoja de ruta de specs
 specs/001-autorizaciones/
   spec.md                                  Problema, comportamiento, reglas, criterios de aceptación
   plan.md                                  Decisiones técnicas
@@ -29,6 +30,8 @@ Cadena SDD: **Constitución + AGENTS.md → Spec → Plan → Tareas → Impleme
 - Pruebas manuales: [specs/001-autorizaciones/tests.md](specs/001-autorizaciones/tests.md).
 
 ## Alcance y límites
+
+Hoja de ruta: [specs/README.md](specs/README.md).
 
 Prototipo con datos ficticios en memoria (se reinician al recargar), sin WhatsApp real, base de datos ni autenticación. El registro de personas autorizadas a retirar alumnos queda para un segundo feature.
 

@@ -2,16 +2,21 @@
 
 ```
 Alumno         { id, nombre, salon }
-Solicitud      { id, titulo, salon, fechaLimite (YYYY-MM-DD), creadaEn }
-Autorizacion   { id, solicitudId, alumnoId, estado, enviadaEn | null, respondidaEn | null }
+Solicitud      { id, titulo, categoria, destinatarios, salon | null, fechaLimite (YYYY-MM-DD), creadaEn }
+Autorizacion   { id, solicitudId, alumnoId, estado, enviadaEn | null, envios[], respondidaEn | null }
+Envio          { en, tipo: inicial | recordatorio }
 ```
 
 ## Relaciones
 
 - Un **Salón** tiene muchos **Alumnos**.
-- Una **Solicitud** se dirige a un salón y genera una **Autorizacion** por cada alumno de ese salón.
+- Una **Solicitud** se dirige a un salón completo o a alumnos específicos y genera una **Autorizacion** por cada destinatario.
 - Una **Autorizacion** pertenece a un único alumno y a una única solicitud.
 - Restricción: único `(solicitudId, alumnoId)`.
+
+- `categoria` ∈ `salida | vacunacion | evento | foto | otra`; define los textos de respuesta (RN9), no el modelo.
+- `destinatarios` ∈ `salon | alumnos`. Con `salon`, el campo `salon` indica el salón; con `alumnos` es `null`.
+- `enviadaEn` es la fecha del último envío de `envios`.
 
 ## Estados
 

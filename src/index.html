@@ -42,6 +42,7 @@
 
   dialog { border: 1px solid var(--borde); border-radius: 12px; max-width: 460px; width: calc(100% - 32px); padding: 20px; color: var(--tinta); }
   dialog::backdrop { background: rgba(31,42,68,.45); }
+  fieldset.campo { border: 1px solid var(--borde); border-radius: 8px; padding: 8px 12px; } .opcion { display: flex; align-items: center; gap: 8px; font-weight: 400; min-height: 44px; margin: 0; } .opcion input { width: auto; min-height: 0; } #bloqueAlumnos { max-height: 180px; overflow: auto; }
   .campo { margin-bottom: 12px; } .error { color: var(--no); font-weight: 600; min-height: 1.4em; }
   .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
   .msg { background: #E7F7EC; border: 1px solid #B9DEC6; border-radius: 10px; padding: 12px; white-space: pre-wrap; }
@@ -73,7 +74,7 @@
     <div><label for="estado">Estado</label>
       <select id="estado">
         <option value="todos">Todos</option><option value="pendiente">Pendiente</option>
-        <option value="autorizada">Autorizada</option><option value="no_autorizada">No autorizada</option>
+        <option value="autorizada">Autorizada / confirmada</option><option value="no_autorizada">No autorizada / no asiste</option>
         <option value="vencida">Vencida</option>
       </select></div>
     <button class="primario" id="nueva">Nueva solicitud</button>
@@ -86,7 +87,15 @@
   <form method="dialog" id="formNueva" novalidate>
     <h2>Nueva solicitud</h2>
     <div class="campo"><label for="titulo">Título</label><input id="titulo" placeholder="Ej.: Salida al museo"></div>
-    <div class="campo"><label for="salon">Salón</label><select id="salon"></select></div>
+    <div class="campo"><label for="categoria">Categoría</label>
+      <select id="categoria"></select></div>
+    <fieldset class="campo">
+      <legend>Destinatarios</legend>
+      <label class="opcion"><input type="radio" name="dest" value="salon" checked> Un salón completo</label>
+      <label class="opcion"><input type="radio" name="dest" value="alumnos"> Alumnos específicos</label>
+      <div id="bloqueSalon"><label for="salon">Salón</label><select id="salon"></select></div>
+      <div id="bloqueAlumnos" hidden></div>
+    </fieldset>
     <div class="campo"><label for="fecha">Fecha límite de respuesta</label><input id="fecha" type="date"></div>
     <p class="error" id="errNueva" role="alert"></p>
     <div class="pie"><button type="button" id="cancelarNueva">Cancelar</button><button type="submit" class="primario">Crear solicitud</button></div>
@@ -118,15 +127,15 @@
     { id: 'l7', nombre: 'Emma Castro', salon: '1.º B' }, { id: 'l8', nombre: 'Joaquín Vera', salon: '2.º A' },
     { id: 'l9', nombre: 'Martina Silva', salon: '2.º A' }, { id: 'l10', nombre: 'Lautaro Díaz', salon: '2.º A' }
   ]);
-  A.crearSolicitud(estado, { titulo: 'Salida al museo de ciencias', salon: '2.º A', fechaLimite: desdeHoy(-3) });
-  A.crearSolicitud(estado, { titulo: 'Uso de fotos en la web', salon: '1.º B', fechaLimite: desdeHoy(5) });
+  A.crearSolicitud(estado, { titulo: 'Salida al museo de ciencias', categoria: 'salida', salon: '2.º A', fechaLimite: desdeHoy(-3) });
+  A.crearSolicitud(estado, { titulo: 'Uso de fotos en la web', categoria: 'foto', salon: '1.º B', fechaLimite: desdeHoy(5) });
   A.registrarRespuesta(estado, estado.autorizaciones[0].id, 'autorizada');
   A.registrarRespuesta(estado, estado.autorizaciones[1].id, 'no_autorizada');
   A.simularEnvio(estado, estado.autorizaciones[2].id);
   A.registrarRespuesta(estado, estado.autorizaciones[3].id, 'autorizada');
   A.simularEnvio(estado, estado.autorizaciones[4].id);
 
-  var ETQ = { pendiente: '⏳ Pendiente', autorizada: '✓ Autorizada', no_autorizada: '✕ No autorizada', vencida: '⚠ Vencida' };
+  var SIMB = { pendiente: '⏳ ', autorizada: '✓ ', no_autorizada: '✕ ', vencida: '⚠ ' };
   var $ = function (id) { return document.getElementById(id); };
 
   function el(tag, props, children) {
@@ -164,21 +173,21 @@
     var cab = el('tr', {}, ['Alumno', 'Salón', 'Solicitud', 'Fecha límite', 'Estado', 'Enviado', 'Acciones'].map(function (h) { return el('th', { texto: h }); }));
     var tbody = el('tbody');
     filas.forEach(function (f) {
-      var a = f.aut, venc = f.visible === 'vencida';
+      var a = f.aut, venc = f.visible === 'vencida', cat = A.categoriaDe(f.solicitud);
       var limite = el('td', { 'data-t': 'Fecha límite', texto: fmtFecha(f.solicitud.fechaLimite) });
       if (venc) limite.appendChild(el('span', { class: 'nota', texto: 'venció hace ' + A.diasEntre(f.solicitud.fechaLimite, hoy) + ' días' }));
       var acciones = el('div', { class: 'acciones' }, [
-        el('button', { texto: 'Enviar por WhatsApp', 'aria-label': 'Enviar por WhatsApp a la familia de ' + f.alumno.nombre, onclick: function () { enviar(a.id); } }),
-        el('button', { class: 'ok', texto: 'Autoriza', 'aria-label': 'Registrar que la familia de ' + f.alumno.nombre + ' autoriza', onclick: function () { responder(a.id, 'autorizada'); } }),
-        el('button', { class: 'no', texto: 'No autoriza', 'aria-label': 'Registrar que la familia de ' + f.alumno.nombre + ' no autoriza', onclick: function () { responder(a.id, 'no_autorizada'); } })
+        el('button', { texto: a.envios.length ? 'Enviar recordatorio' : 'Enviar por WhatsApp', 'aria-label': 'Enviar por WhatsApp a la familia de ' + f.alumno.nombre, onclick: function () { enviar(a.id); } }),
+        el('button', { class: 'ok', texto: cat.si, 'aria-label': 'Registrar respuesta de la familia de ' + f.alumno.nombre + ': ' + cat.si, onclick: function () { responder(a.id, 'autorizada'); } }),
+        el('button', { class: 'no', texto: cat.no, 'aria-label': 'Registrar respuesta de la familia de ' + f.alumno.nombre + ': ' + cat.no, onclick: function () { responder(a.id, 'no_autorizada'); } })
       ]);
       tbody.appendChild(el('tr', {}, [
         el('td', { 'data-t': 'Alumno', texto: f.alumno.nombre }),
         el('td', { 'data-t': 'Salón', texto: f.alumno.salon }),
-        el('td', { 'data-t': 'Solicitud', texto: f.solicitud.titulo }),
+        el('td', { 'data-t': 'Solicitud', texto: f.solicitud.titulo }, [el('span', { class: 'nota', texto: cat.nombre + ' · ' + (f.solicitud.destinatarios === 'salon' ? 'Salón ' + f.solicitud.salon : 'Alumnos elegidos') })]),
         limite,
-        el('td', { 'data-t': 'Estado' }, [el('span', { class: 'badge b-' + f.visible, texto: ETQ[f.visible] })]),
-        el('td', { 'data-t': 'Enviado', texto: a.enviadaEn ? fmtHora(a.enviadaEn) : 'No enviado' }),
+        el('td', { 'data-t': 'Estado' }, [el('span', { class: 'badge b-' + f.visible, texto: SIMB[f.visible] + A.etiqueta(f.solicitud, f.visible) })]),
+        el('td', { 'data-t': 'Enviado', texto: a.enviadaEn ? fmtHora(a.enviadaEn) + (a.envios.length > 1 ? ' (' + a.envios.length + ' envíos)' : '') : 'No enviado' }),
         el('td', {}, [acciones])
       ]));
     });
@@ -192,7 +201,8 @@
     if (!r.ok) return aviso(r.error);
     var al = estado.alumnos.find(function (x) { return x.id === r.autorizacion.alumnoId; });
     var sol = estado.solicitudes.find(function (x) { return x.id === r.autorizacion.solicitudId; });
-    $('waTexto').textContent = 'Hola, familia de ' + al.nombre + '. La escuela necesita su respuesta para "' + sol.titulo +
+    var recordatorio = r.autorizacion.envios.length > 1;
+    $('waTexto').textContent = 'Hola, familia de ' + al.nombre + '. ' + (recordatorio ? 'Les recordamos que la escuela necesita' : 'La escuela necesita') + ' su respuesta para "' + sol.titulo +
       '" antes del ' + fmtFecha(sol.fechaLimite) + '.\nRespondé acá: https://escuelaclara.example/r/' + id;
     $('dlgWa').showModal();
     pintar();
@@ -206,16 +216,27 @@
   }
 
   // Nueva solicitud
+  Object.keys(A.CATEGORIAS).forEach(function (k) { $('categoria').appendChild(el('option', { value: k, texto: A.CATEGORIAS[k].nombre })); });
+  estado.alumnos.forEach(function (al) {
+    $('bloqueAlumnos').appendChild(el('label', { class: 'opcion' }, [el('input', { type: 'checkbox', value: al.id, name: 'alumno' }), el('span', { texto: al.nombre + ' (' + al.salon + ')' })]));
+  });
+  function modoDest() { return document.querySelector('input[name="dest"]:checked').value; }
+  Array.prototype.forEach.call(document.getElementsByName('dest'), function (r) {
+    r.addEventListener('change', function () { $('bloqueSalon').hidden = modoDest() !== 'salon'; $('bloqueAlumnos').hidden = modoDest() !== 'alumnos'; });
+  });
   var salones = Array.from(new Set(estado.alumnos.map(function (a) { return a.salon; })));
   salones.forEach(function (s) { $('salon').appendChild(el('option', { value: s, texto: s })); });
-  $('nueva').onclick = function () { $('errNueva').textContent = ''; $('titulo').value = ''; $('fecha').value = desdeHoy(7); $('dlgNueva').showModal(); $('titulo').focus(); };
+  $('nueva').onclick = function () { $('errNueva').textContent = ''; $('titulo').value = ''; $('formNueva').reset(); $('bloqueSalon').hidden = false; $('bloqueAlumnos').hidden = true; $('fecha').value = desdeHoy(7); $('dlgNueva').showModal(); $('titulo').focus(); };
   $('cancelarNueva').onclick = function () { $('dlgNueva').close(); };
   $('formNueva').addEventListener('submit', function (ev) {
     ev.preventDefault();
-    var r = A.crearSolicitud(estado, { titulo: $('titulo').value, salon: $('salon').value, fechaLimite: $('fecha').value });
+    var datos = { titulo: $('titulo').value, categoria: $('categoria').value, fechaLimite: $('fecha').value };
+    if (modoDest() === 'alumnos') datos.alumnoIds = Array.prototype.map.call(document.querySelectorAll('input[name="alumno"]:checked'), function (c) { return c.value; });
+    else datos.salon = $('salon').value;
+    var r = A.crearSolicitud(estado, datos);
     if (!r.ok) { $('errNueva').textContent = r.error; return; }
     $('dlgNueva').close();
-    aviso('Solicitud creada para ' + r.cantidad + ' familias de ' + r.solicitud.salon + '.');
+    aviso('Solicitud creada para ' + r.cantidad + ' familias' + (r.solicitud.salon ? ' de ' + r.solicitud.salon : '') + '.');
     pintar();
   });
   $('cerrarWa').onclick = function () { $('dlgWa').close(); };

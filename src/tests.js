@@ -60,6 +60,39 @@
       eq(e.autorizaciones.length, n, 'Cantidad');
     });
 
+    t('CA3 solicitud guarda categoría y rechaza una inválida', function () {
+      var e = nuevo();
+      eq(e.solicitudes[0].categoria, 'otra', 'Categoría por defecto');
+      var r = A.crearSolicitud(e, { titulo: 'Feria', categoria: 'evento', salon: '1.º B', fechaLimite: '2026-11-10' });
+      eq(r.solicitud.categoria, 'evento', 'Categoría');
+      eq(A.crearSolicitud(e, { titulo: 'x', categoria: 'inventada', salon: '1.º B', fechaLimite: '2026-11-10' }).ok, false, 'inválida');
+    });
+
+    t('CA3 destinatarios: alumnos específicos', function () {
+      var e = nuevo(); var antes = e.autorizaciones.length;
+      var r = A.crearSolicitud(e, { titulo: 'Vacuna', categoria: 'vacunacion', alumnoIds: ['l1', 'l3', 'l1'], fechaLimite: '2026-11-10' });
+      eq(r.ok, true, 'ok'); eq(r.cantidad, 2, 'Sin duplicados'); eq(r.solicitud.destinatarios, 'alumnos', 'Tipo');
+      eq(e.autorizaciones.length, antes + 2, 'Autorizaciones');
+      eq(A.crearSolicitud(e, { titulo: 'x', alumnoIds: [], fechaLimite: '2026-11-10' }).ok, false, 'Vacío');
+      eq(A.crearSolicitud(e, { titulo: 'x', alumnoIds: ['zzz'], fechaLimite: '2026-11-10' }).ok, false, 'Inexistente');
+    });
+
+    t('RN9 etiquetas de respuesta según categoría', function () {
+      var e = nuevo();
+      var r = A.crearSolicitud(e, { titulo: 'Feria', categoria: 'evento', salon: '1.º B', fechaLimite: '2026-11-10' });
+      eq(A.etiqueta(r.solicitud, 'autorizada'), 'Confirmada', 'Evento sí');
+      eq(A.etiqueta(r.solicitud, 'no_autorizada'), 'No asiste', 'Evento no');
+      eq(A.etiqueta(e.solicitudes[0], 'autorizada'), 'Autorizada', 'Otra sí');
+      eq(A.etiqueta(r.solicitud, 'vencida'), 'Vencida', 'Vencida');
+    });
+
+    t('RN1 varios envíos quedan registrados y el estado no cambia', function () {
+      var e = nuevo(); var a = e.autorizaciones[0];
+      A.simularEnvio(e, a.id); A.simularEnvio(e, a.id);
+      eq(a.envios.length, 2, 'Envíos'); eq(a.envios[0].tipo, 'inicial', 'Primero'); eq(a.envios[1].tipo, 'recordatorio', 'Segundo');
+      eq(a.estado, 'pendiente', 'Estado');
+    });
+
     t('CA4 registrar y corregir respuesta actualiza contadores', function () {
       var e = nuevo(); var id = e.autorizaciones[0].id;
       A.registrarRespuesta(e, id, 'autorizada');

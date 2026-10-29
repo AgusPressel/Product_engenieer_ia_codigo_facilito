@@ -9,5 +9,9 @@
 - [x] T7 Indicador de vencidas con "venció hace N días" (CA5)
 - [x] T8 Envío simulado por WhatsApp, columna "Enviado" separada (CA6)
 - [x] T9 Diseño según skill `brand-design` y vista móvil
+- [x] T9b Categoría de la solicitud (RN9)
+- [x] T9c Destinatarios por salón o por alumnos específicos (RN6)
+- [x] T9d Textos de respuesta por categoría (RN9)
+- [x] T9e Historial de envíos y recordatorios (RN11)
 - [ ] T10 Ejecutar la verificación manual de [tests.md](tests.md) en navegador (escritorio y 360 px)
 - [ ] T11 Publicar el repositorio y compartir la URL

@@ -2,6 +2,26 @@
 (function (root) {
   'use strict';
 
+  // Categorías: todas responden sí / no, pero con palabras distintas (RN9)
+  function cat(nombre, si, no, siEtq, noEtq) { return { nombre: nombre, si: si, no: no, siEtq: siEtq, noEtq: noEtq }; }
+  var CATEGORIAS = {
+    salida: cat('Salida escolar', 'Autoriza', 'No autoriza', 'Autorizada', 'No autorizada'),
+    vacunacion: cat('Vacunación', 'Autoriza', 'No autoriza', 'Autorizada', 'No autorizada'),
+    evento: cat('Evento escolar', 'Confirma', 'No asiste', 'Confirmada', 'No asiste'),
+    foto: cat('Uso de fotos', 'Autoriza', 'No autoriza', 'Autorizada', 'No autorizada'),
+    otra: cat('Otra', 'Autoriza', 'No autoriza', 'Autorizada', 'No autorizada')
+  };
+
+  function categoriaDe(sol) { return CATEGORIAS[sol.categoria] || CATEGORIAS.otra; }
+
+  // Texto del estado según la categoría de la solicitud
+  function etiqueta(sol, visible) {
+    var c = categoriaDe(sol);
+    if (visible === 'autorizada') return c.siEtq;
+    if (visible === 'no_autorizada') return c.noEtq;
+    return visible === 'vencida' ? 'Vencida' : 'Pendiente';
+  }
+
   function hoyISO(d) {
     d = d || new Date();
     var m = String(d.getMonth() + 1).padStart(2, '0');
@@ -41,17 +61,32 @@
   function crearSolicitud(estado, datos, ahora) {
     var titulo = (datos.titulo || '').trim();
     if (!titulo) return { ok: false, error: 'Completá el título para crear la solicitud.' };
-    if (!datos.salon) return { ok: false, error: 'Elegí el salón al que va dirigida la solicitud.' };
+    var categoria = datos.categoria || 'otra';
+    if (!Object.prototype.hasOwnProperty.call(CATEGORIAS, categoria)) return { ok: false, error: 'Elegí una categoría válida.' };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fechaLimite || '')) {
       return { ok: false, error: 'Elegí la fecha límite de respuesta.' };
     }
-    var alumnos = estado.alumnos.filter(function (a) { return a.salon === datos.salon; });
-    if (!alumnos.length) return { ok: false, error: 'Ese salón no tiene alumnos cargados.' };
+    // Destinatarios: alumnos específicos (alumnoIds) o un salón completo
+    var alumnos, destinatarios;
+    if (Array.isArray(datos.alumnoIds)) {
+      destinatarios = 'alumnos';
+      var ids = datos.alumnoIds.filter(function (id, i, arr) { return arr.indexOf(id) === i; });
+      if (!ids.length) return { ok: false, error: 'Marcá al menos un alumno.' };
+      alumnos = ids.map(function (id) { return estado.alumnos.find(function (a) { return a.id === id; }); });
+      if (alumnos.some(function (a) { return !a; })) return { ok: false, error: 'Hay alumnos que no existen.' };
+    } else {
+      destinatarios = 'salon';
+      if (!datos.salon) return { ok: false, error: 'Elegí el salón al que va dirigida la solicitud.' };
+      alumnos = estado.alumnos.filter(function (a) { return a.salon === datos.salon; });
+      if (!alumnos.length) return { ok: false, error: 'Ese salón no tiene alumnos cargados.' };
+    }
 
     var sol = {
       id: 's' + estado.siguienteId++,
       titulo: titulo,
-      salon: datos.salon,
+      categoria: categoria,
+      destinatarios: destinatarios,
+      salon: destinatarios === 'salon' ? datos.salon : null,
       fechaLimite: datos.fechaLimite,
       creadaEn: ahora || new Date().toISOString()
     };
@@ -63,6 +98,7 @@
         alumnoId: al.id,
         estado: 'pendiente',
         enviadaEn: null,
+        envios: [],
         respondidaEn: null
       });
     });
@@ -73,11 +109,13 @@
     return estado.autorizaciones.find(function (a) { return a.id === id; });
   }
 
-  // RN1: solo escribe enviadaEn
+  // RN1: solo registra el envío (enviadaEn y envios); un envío posterior es un recordatorio
   function simularEnvio(estado, autId, ahora) {
     var aut = buscarAut(estado, autId);
     if (!aut) return { ok: false, error: 'No encontramos esa autorización.' };
-    aut.enviadaEn = ahora || new Date().toISOString();
+    var en = ahora || new Date().toISOString();
+    aut.envios.push({ en: en, tipo: aut.envios.length ? 'recordatorio' : 'inicial' });
+    aut.enviadaEn = en;
     return { ok: true, autorizacion: aut };
   }
 
@@ -123,6 +161,7 @@
   }
 
   var api = {
+    CATEGORIAS: CATEGORIAS, categoriaDe: categoriaDe, etiqueta: etiqueta,
     hoyISO: hoyISO, normalizar: normalizar, diasEntre: diasEntre,
     estaVencida: estaVencida, estadoVisible: estadoVisible,
     crearEstado: crearEstado, crearSolicitud: crearSolicitud,
