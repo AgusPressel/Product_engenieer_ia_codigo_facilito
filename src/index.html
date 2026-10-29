@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escuela Clara · Autorizaciones</title>
+<style>
+  :root {
+    --tinta: #1F2A44; --papel: #F7F6F2; --superficie: #FFFFFF; --primario: #2F5D9E; --borde: #D9D6CC;
+    --ok: #1E7A4C; --ok-bg: #E3F3EA; --no: #A12D3A; --no-bg: #FBE6E8;
+    --pen: #8A5A00; --pen-bg: #FFF1D0; --ven: #B3261E; --muted: #5B6478;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--papel); color: var(--tinta); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { background: var(--superficie); border-bottom: 1px solid var(--borde); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h1 { margin: 0; font-size: 1.4rem; } h1 small { display: block; font-size: .95rem; font-weight: 400; color: var(--muted); }
+  :focus-visible { outline: 3px solid var(--primario); outline-offset: 2px; }
+  button, input, select { font: inherit; color: inherit; }
+  button { min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--primario); background: var(--superficie); color: var(--primario); cursor: pointer; font-weight: 600; }
+  button.primario { background: var(--primario); color: #fff; }
+  button.ok { border-color: var(--ok); color: var(--ok); } button.no { border-color: var(--no); color: var(--no); }
+  input, select { min-height: 44px; padding: 0 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--superficie); width: 100%; }
+  label { display: block; font-weight: 600; margin-bottom: 4px; }
+
+  .resumen { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 16px 0; padding: 0; list-style: none; }
+  .resumen li { background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; padding: 12px; }
+  .resumen strong { display: block; font-size: 1.8rem; line-height: 1.1; }
+  .resumen li.alerta { background: var(--ven); border-color: var(--ven); color: #fff; }
+
+  .barra { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end; margin-bottom: 16px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  th { background: #EFEDE6; font-size: .9rem; }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: .9rem; white-space: nowrap; }
+  .b-pendiente { background: var(--pen-bg); color: var(--pen); } .b-autorizada { background: var(--ok-bg); color: var(--ok); }
+  .b-no_autorizada { background: var(--no-bg); color: var(--no); } .b-vencida { background: var(--ven); color: #fff; }
+  .nota { color: var(--muted); font-size: .9rem; display: block; }
+  .vacio { padding: 24px; text-align: center; background: var(--superficie); border: 1px dashed var(--borde); border-radius: 10px; }
+
+  dialog { border: 1px solid var(--borde); border-radius: 12px; max-width: 460px; width: calc(100% - 32px); padding: 20px; color: var(--tinta); }
+  dialog::backdrop { background: rgba(31,42,68,.45); }
+  .campo { margin-bottom: 12px; } .error { color: var(--no); font-weight: 600; min-height: 1.4em; }
+  .pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .msg { background: #E7F7EC; border: 1px solid #B9DEC6; border-radius: 10px; padding: 12px; white-space: pre-wrap; }
+  #aviso { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--tinta); color: #fff; padding: 10px 16px; border-radius: 8px; display: none; max-width: calc(100% - 32px); }
+
+  @media (max-width: 760px) {
+    .resumen { grid-template-columns: repeat(2, 1fr); }
+    .barra { grid-template-columns: 1fr; }
+    table, thead, tbody, tr, td { display: block; }
+    thead { position: absolute; left: -9999px; }
+    tr { background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 12px; padding: 8px; }
+    td { border: 0; padding: 4px 8px; }
+    td[data-t]::before { content: attr(data-t) ": "; font-weight: 600; color: var(--muted); }
+    table { border: 0; background: transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Escuela Clara <small>Autorizaciones de las familias</small></h1>
+</div></header>
+
+<main class="wrap">
+  <ul class="resumen" aria-label="Resumen de autorizaciones" id="resumen"></ul>
+
+  <div class="barra">
+    <div><label for="busqueda">Buscar alumno</label><input id="busqueda" type="search" placeholder="Escribí un nombre"></div>
+    <div><label for="estado">Estado</label>
+      <select id="estado">
+        <option value="todos">Todos</option><option value="pendiente">Pendiente</option>
+        <option value="autorizada">Autorizada</option><option value="no_autorizada">No autorizada</option>
+        <option value="vencida">Vencida</option>
+      </select></div>
+    <button class="primario" id="nueva">Nueva solicitud</button>
+  </div>
+
+  <div id="tabla" aria-live="polite"></div>
+</main>
+
+<dialog id="dlgNueva">
+  <form method="dialog" id="formNueva" novalidate>
+    <h2>Nueva solicitud</h2>
+    <div class="campo"><label for="titulo">Título</label><input id="titulo" placeholder="Ej.: Salida al museo"></div>
+    <div class="campo"><label for="salon">Salón</label><select id="salon"></select></div>
+    <div class="campo"><label for="fecha">Fecha límite de respuesta</label><input id="fecha" type="date"></div>
+    <p class="error" id="errNueva" role="alert"></p>
+    <div class="pie"><button type="button" id="cancelarNueva">Cancelar</button><button type="submit" class="primario">Crear solicitud</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgWa">
+  <h2>Enviar por WhatsApp (simulado)</h2>
+  <p>Este es el mensaje que recibiría la familia. No se envía nada real.</p>
+  <div class="msg" id="waTexto"></div>
+  <p class="nota">Enviar el enlace no autoriza nada: el estado cambia solo cuando registrás la respuesta de la familia.</p>
+  <div class="pie"><button type="button" id="cerrarWa" class="primario">Entendido</button></div>
+</dialog>
+
+<div id="aviso" role="status"></div>
+
+<script src="logic.js"></script>
+<script>
+(function () {
+  var A = window.Autorizaciones;
+  var hoy = A.hoyISO();
+  function desdeHoy(n) { var d = new Date(); d.setDate(d.getDate() + n); return A.hoyISO(d); }
+
+  // Datos ficticios (se reinician al recargar)
+  var estado = A.crearEstado([
+    { id: 'l1', nombre: 'Lucía Fernández', salon: '1.º A' }, { id: 'l2', nombre: 'Mateo Ríos', salon: '1.º A' },
+    { id: 'l3', nombre: 'Valentina Gómez', salon: '1.º A' }, { id: 'l4', nombre: 'Tomás Acosta', salon: '1.º A' },
+    { id: 'l5', nombre: 'Sofía Luna', salon: '1.º B' }, { id: 'l6', nombre: 'Benjamín Paz', salon: '1.º B' },
+    { id: 'l7', nombre: 'Emma Castro', salon: '1.º B' }, { id: 'l8', nombre: 'Joaquín Vera', salon: '2.º A' },
+    { id: 'l9', nombre: 'Martina Silva', salon: '2.º A' }, { id: 'l10', nombre: 'Lautaro Díaz', salon: '2.º A' }
+  ]);
+  A.crearSolicitud(estado, { titulo: 'Salida al museo de ciencias', salon: '2.º A', fechaLimite: desdeHoy(-3) });
+  A.crearSolicitud(estado, { titulo: 'Uso de fotos en la web', salon: '1.º B', fechaLimite: desdeHoy(5) });
+  A.registrarRespuesta(estado, estado.autorizaciones[0].id, 'autorizada');
+  A.registrarRespuesta(estado, estado.autorizaciones[1].id, 'no_autorizada');
+  A.simularEnvio(estado, estado.autorizaciones[2].id);
+  A.registrarRespuesta(estado, estado.autorizaciones[3].id, 'autorizada');
+  A.simularEnvio(estado, estado.autorizaciones[4].id);
+
+  var ETQ = { pendiente: '⏳ Pendiente', autorizada: '✓ Autorizada', no_autorizada: '✕ No autorizada', vencida: '⚠ Vencida' };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, props, children) {
+    var e = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) {
+      if (k === 'texto') e.textContent = props[k]; else if (k === 'onclick') e.onclick = props[k]; else e.setAttribute(k, props[k]);
+    });
+    (children || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+
+  function fmtFecha(iso) { var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function fmtHora(iso) { var d = new Date(iso); return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+
+  function aviso(txt) {
+    var a = $('aviso'); a.textContent = txt; a.style.display = 'block';
+    clearTimeout(aviso.t); aviso.t = setTimeout(function () { a.style.display = 'none'; }, 3000);
+  }
+
+  function pintarResumen() {
+    var r = A.resumen(estado, hoy);
+    var items = [['Total', r.total], ['Pendientes', r.pendientes], ['Autorizadas', r.autorizadas], ['No autorizadas', r.noAutorizadas], ['Vencidas', r.vencidas]];
+    var ul = $('resumen'); ul.textContent = '';
+    items.forEach(function (it) {
+      var li = el('li', { class: it[0] === 'Vencidas' && it[1] > 0 ? 'alerta' : '' }, [el('strong', { texto: String(it[1]) }), el('span', { texto: it[0] })]);
+      ul.appendChild(li);
+    });
+  }
+
+  function pintarTabla() {
+    var filas = A.filas(estado, { busqueda: $('busqueda').value, estado: $('estado').value }, hoy);
+    var cont = $('tabla'); cont.textContent = '';
+    if (!filas.length) { cont.appendChild(el('div', { class: 'vacio', texto: 'No encontramos alumnos con esos filtros' })); return; }
+
+    var cab = el('tr', {}, ['Alumno', 'Salón', 'Solicitud', 'Fecha límite', 'Estado', 'Enviado', 'Acciones'].map(function (h) { return el('th', { texto: h }); }));
+    var tbody = el('tbody');
+    filas.forEach(function (f) {
+      var a = f.aut, venc = f.visible === 'vencida';
+      var limite = el('td', { 'data-t': 'Fecha límite', texto: fmtFecha(f.solicitud.fechaLimite) });
+      if (venc) limite.appendChild(el('span', { class: 'nota', texto: 'venció hace ' + A.diasEntre(f.solicitud.fechaLimite, hoy) + ' días' }));
+      var acciones = el('div', { class: 'acciones' }, [
+        el('button', { texto: 'Enviar por WhatsApp', 'aria-label': 'Enviar por WhatsApp a la familia de ' + f.alumno.nombre, onclick: function () { enviar(a.id); } }),
+        el('button', { class: 'ok', texto: 'Autoriza', 'aria-label': 'Registrar que la familia de ' + f.alumno.nombre + ' autoriza', onclick: function () { responder(a.id, 'autorizada'); } }),
+        el('button', { class: 'no', texto: 'No autoriza', 'aria-label': 'Registrar que la familia de ' + f.alumno.nombre + ' no autoriza', onclick: function () { responder(a.id, 'no_autorizada'); } })
+      ]);
+      tbody.appendChild(el('tr', {}, [
+        el('td', { 'data-t': 'Alumno', texto: f.alumno.nombre }),
+        el('td', { 'data-t': 'Salón', texto: f.alumno.salon }),
+        el('td', { 'data-t': 'Solicitud', texto: f.solicitud.titulo }),
+        limite,
+        el('td', { 'data-t': 'Estado' }, [el('span', { class: 'badge b-' + f.visible, texto: ETQ[f.visible] })]),
+        el('td', { 'data-t': 'Enviado', texto: a.enviadaEn ? fmtHora(a.enviadaEn) : 'No enviado' }),
+        el('td', {}, [acciones])
+      ]));
+    });
+    cont.appendChild(el('table', {}, [el('thead', {}, [cab]), tbody]));
+  }
+
+  function pintar() { pintarResumen(); pintarTabla(); }
+
+  function enviar(id) {
+    var r = A.simularEnvio(estado, id);
+    if (!r.ok) return aviso(r.error);
+    var al = estado.alumnos.find(function (x) { return x.id === r.autorizacion.alumnoId; });
+    var sol = estado.solicitudes.find(function (x) { return x.id === r.autorizacion.solicitudId; });
+    $('waTexto').textContent = 'Hola, familia de ' + al.nombre + '. La escuela necesita su respuesta para "' + sol.titulo +
+      '" antes del ' + fmtFecha(sol.fechaLimite) + '.\nRespondé acá: https://escuelaclara.example/r/' + id;
+    $('dlgWa').showModal();
+    pintar();
+  }
+
+  function responder(id, respuesta) {
+    var r = A.registrarRespuesta(estado, id, respuesta);
+    if (!r.ok) return aviso(r.error);
+    aviso(respuesta === 'autorizada' ? 'Registramos: autoriza.' : 'Registramos: no autoriza.');
+    pintar();
+  }
+
+  // Nueva solicitud
+  var salones = Array.from(new Set(estado.alumnos.map(function (a) { return a.salon; })));
+  salones.forEach(function (s) { $('salon').appendChild(el('option', { value: s, texto: s })); });
+  $('nueva').onclick = function () { $('errNueva').textContent = ''; $('titulo').value = ''; $('fecha').value = desdeHoy(7); $('dlgNueva').showModal(); $('titulo').focus(); };
+  $('cancelarNueva').onclick = function () { $('dlgNueva').close(); };
+  $('formNueva').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var r = A.crearSolicitud(estado, { titulo: $('titulo').value, salon: $('salon').value, fechaLimite: $('fecha').value });
+    if (!r.ok) { $('errNueva').textContent = r.error; return; }
+    $('dlgNueva').close();
+    aviso('Solicitud creada para ' + r.cantidad + ' familias de ' + r.solicitud.salon + '.');
+    pintar();
+  });
+  $('cerrarWa').onclick = function () { $('dlgWa').close(); };
+  $('busqueda').addEventListener('input', pintarTabla);
+  $('estado').addEventListener('change', pintarTabla);
+
+  pintar();
+})();
+</script>
+</body>
+</html>

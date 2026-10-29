@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas · Escuela Clara</title>
+<style>
+  body { font: 16px system-ui, sans-serif; background: #F7F6F2; color: #1F2A44; max-width: 720px; margin: 2rem auto; padding: 0 16px; }
+  li { margin: .4rem 0; } .ok { color: #1E7A4C; } .fail { color: #A12D3A; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>Pruebas de criterios de aceptación</h1>
+<p id="resumen" role="status"></p>
+<ul id="lista"></ul>
+<script src="logic.js"></script>
+<script src="tests.js"></script>
+<script>
+  var res = ejecutarPruebas(window.Autorizaciones);
+  var lista = document.getElementById('lista');
+  res.forEach(function (r) {
+    var li = document.createElement('li');
+    li.className = r.ok ? 'ok' : 'fail';
+    li.textContent = (r.ok ? '✓ ' : '✕ ') + r.nombre + (r.error ? ' → ' + r.error : '');
+    lista.appendChild(li);
+  });
+  var pasan = res.filter(function (r) { return r.ok; }).length;
+  document.getElementById('resumen').textContent = pasan + ' de ' + res.length + ' pruebas pasan';
+</script>
+</body>
+</html>
